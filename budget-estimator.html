@@ -1,0 +1,160 @@
+<!-- AttainXR Budget Estimator.
+     HubSpot: put <div class="axr-est"></div> in the page body, and the <style> + <script> below in
+     Page settings > Advanced > Head HTML. The script builds the calculator inside that div. -->
+<div class="axr-est"></div>
+
+<style>
+  .axr-est { --navy: #1a3a6b; --cyan: #00bfff; --panel: #f4f6f9; --muted: #666;
+    max-width: 760px; margin: 0 auto; padding: 32px; box-sizing: border-box;
+    font-family: Montserrat, sans-serif; color: #333; background: #fff;
+    box-shadow: 0 10px 20px rgba(8, 39, 82, .08); border-radius: 12px; }
+  .axr-est h2, .axr-est h3 { color: var(--navy); font-weight: 700; margin: 0 0 8px; }
+  .axr-sub { color: var(--muted); margin: 0 0 24px; }
+  .axr-est label { display: block; font-weight: 600; color: var(--navy); }
+  .axr-est input:not([type=checkbox]) { display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
+    padding: 10px; font: inherit; color: #212d3a; background: #f5f8fa; border: 1px solid #959494; border-radius: 10px; }
+  .axr-est input:focus-visible, .axr-app:has(input:focus-visible) { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .axr-headsets { max-width: 200px; margin-bottom: 24px; }
+  .axr-est fieldset { border: 0; padding: 0; margin: 0 0 24px; }
+  .axr-est legend { font-weight: 600; color: var(--navy); margin-bottom: 10px; }
+  .axr-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .axr-app { display: flex !important; gap: 10px; align-items: flex-start; padding: 14px; cursor: pointer;
+    background: var(--panel); border: 2px solid transparent; border-radius: 10px; transition: border-color .15s; }
+  .axr-app:has(input:checked) { border-color: var(--cyan); background: #fff; }
+  .axr-app input { accent-color: var(--navy); margin-top: 3px; }
+  .axr-app small { display: block; font-weight: 400; color: var(--muted); }
+  .axr-app b { display: block; color: var(--navy); margin-top: 4px; }
+  .axr-lead { background: var(--panel); padding: 24px; border-radius: 10px; }
+  .axr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; margin: 16px 0; }
+  .axr-btn { font: inherit; font-weight: 600; color: #fff; background: var(--navy); border: 2px solid transparent;
+    border-radius: 8px; padding: 10px 22px; cursor: pointer; }
+  .axr-btn:hover { background: #011859; }
+  .axr-btn:disabled { opacity: .6; cursor: wait; }
+  .axr-err { color: #e51520; margin: 8px 0 0; }
+  .axr-est table { width: 100%; border-collapse: collapse; }
+  .axr-est th, .axr-est td { text-align: left; padding: 12px 8px; border-bottom: 1px solid #e3e8ef; }
+  .axr-est thead th { font-size: .8em; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .axr-est td:last-child, .axr-est th:last-child { text-align: right; white-space: nowrap; }
+  .axr-est tfoot th { color: var(--navy); border-bottom: 0; border-top: 2px solid var(--navy); }
+  .axr-total { font-size: 1.5em; }
+  .axr-note { font-size: .85em; color: var(--muted); }
+  @media (max-width: 480px) { .axr-est { padding: 20px 16px; } .axr-est thead th:nth-child(2), .axr-est td:nth-child(2) { display: none; } }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Per-headset annual price (USD). EXAMPLE VALUES: set real prices before deploying.
+  const APPS = [
+    { name: 'Cessna 172',                modules: 'Familiarization, Preflight Check, GVI', price: 100 },
+    { name: 'King Air C90',              modules: 'Familiarization, GVI',                  price: 200 },
+    { name: 'Embraer ERJ145',            modules: 'Familiarization',                       price: 200 },
+    { name: 'Pratt & Whitney PT6',       modules: 'Familiarization, Fuel System',          price: 200 },
+    { name: 'Lycoming Engine',           modules: 'Familiarization',                       price: 100 },
+    { name: 'Aircraft Towing Simulator', modules: '',                                      price: 100 },
+  ];
+  // HubSpot form that receives leads (Marketing > Forms). Leave FORM_ID empty to skip the lead gate.
+  const PORTAL_ID = '';
+  const FORM_ID = '';
+
+  const estimate = (headsets, apps) => {
+    const lines = apps.map(a => ({ ...a, subtotal: headsets * a.price }));
+    return { lines, total: lines.reduce((s, l) => s + l.subtotal, 0) };
+  };
+  // 4 headsets of every app at the example prices = $3,600.
+  console.assert(estimate(4, APPS).total === 3600, 'estimate() broken');
+
+  const root = document.querySelector('.axr-est');
+  if (!root) return;
+  root.innerHTML = `
+  <h2>Estimate your training budget</h2>
+  <p class="axr-sub">Choose your VR applications and headset count. Pricing is per headset, per year.</p>
+
+  <form class="axr-inputs">
+    <label class="axr-headsets">Number of headsets
+      <input name="headsets" type="number" min="1" step="1" value="1" required>
+    </label>
+    <fieldset>
+      <legend>VR applications</legend>
+      <div class="axr-apps"></div>
+    </fieldset>
+  </form>
+
+  <form class="axr-lead" hidden>
+    <h3>Where should we send your estimate?</h3>
+    <div class="axr-grid">
+      <label>First name <input name="firstname" autocomplete="given-name" required></label>
+      <label>Last name <input name="lastname" autocomplete="family-name" required></label>
+      <label>Work email <input name="email" type="email" autocomplete="email" required></label>
+      <label>Company <input name="company" autocomplete="organization" required></label>
+    </div>
+    <button class="axr-btn">Show my estimate</button>
+    <p class="axr-err" role="alert"></p>
+  </form>
+
+  <div class="axr-results" aria-live="polite" hidden>
+    <table>
+      <thead><tr><th>Application</th><th>Headsets × price / yr</th><th>Subtotal</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><th colspan="2">Estimated annual total</th><th class="axr-total"></th></tr></tfoot>
+    </table>
+    <p class="axr-note">Estimate only. Hardware, training, and shipping are quoted separately by our sales team.</p>
+  </div>
+  `;
+  const $ = s => root.querySelector(s);
+  const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format;
+  const esc = s => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
+  let unlocked = !FORM_ID;
+
+  $('.axr-apps').innerHTML = APPS.map((a, i) =>
+    `<label class="axr-app"><input type="checkbox" name="app" value="${i}">
+      <span>${esc(a.name)}<small>${esc(a.modules)}</small><b>${usd(a.price)} / headset / yr</b></span></label>`).join('');
+
+  const current = () => {
+    const headsets = Math.max(0, Math.floor(Number($('[name=headsets]').value) || 0));
+    const picked = [...root.querySelectorAll('[name=app]:checked')].map(c => APPS[c.value]);
+    return { headsets, ...estimate(headsets, picked) };
+  };
+
+  const render = () => {
+    const { headsets, lines, total } = current();
+    const ready = lines.length > 0 && $('[name=headsets]').checkValidity();
+    $('.axr-lead').hidden = !ready || unlocked;
+    $('.axr-results').hidden = !ready || !unlocked;
+    $('.axr-results tbody').innerHTML = lines.map(l =>
+      `<tr><td>${esc(l.name)}</td><td>${headsets} × ${usd(l.price)}</td><td>${usd(l.subtotal)}</td></tr>`).join('');
+    $('.axr-total').textContent = usd(total);
+  };
+
+  $('.axr-inputs').addEventListener('input', render);
+  $('.axr-inputs').addEventListener('submit', e => e.preventDefault());
+
+  $('.axr-lead').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
+    $('.axr-err').textContent = '';
+    const { headsets, lines, total } = current();
+    const summary = `${headsets} headsets: ` +
+      lines.map(l => `${l.name} ${usd(l.subtotal)}`).join(', ') + `. Annual total ${usd(total)}`;
+    const fields = [...new FormData(e.target)].map(([name, value]) => ({ name, value }))
+      .concat({ name: 'message', value: summary });
+    const hutk = document.cookie.match(/(?:^|; )hubspotutk=([^;]+)/)?.[1];
+    try {
+      const res = await fetch(`https://api.hsforms.com/submissions/v3/integration/submit/${PORTAL_ID}/${FORM_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields, context: { hutk, pageUri: location.href, pageName: document.title } }),
+      });
+      if (!res.ok) throw new Error(res.status);
+      unlocked = true;
+      render();
+    } catch {
+      $('.axr-err').textContent = 'Something went wrong. Please try again.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  render();
+});
+</script>
