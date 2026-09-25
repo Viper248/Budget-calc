@@ -1,4 +1,5 @@
 # AttainXR Budget Estimator
+dude this is just a calculator
 
 Self-serve training budget estimator for a HubSpot CMS page. Total = headsets × per-headset annual price, summed over the selected VR apps.
 
